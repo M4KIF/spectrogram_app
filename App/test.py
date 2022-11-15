@@ -3,31 +3,31 @@ import random
 # Including Qt core functionality
 from PySide6 import QtCore, QtWidgets, QtGui
 # Responsible for audio file editing
-import wavfile
+from wavfile import base
 # Responsible for generating a graph
 from matplotlib import pyplot
 # For storing particular data in the array
-import numpy
+import numpy as np
 # For needed window functions
-import scipy
+from scipy import signal
 
 
 
-class File(wavfile):
+class File(base.Wavfile):
    def __init__(self):
       #Placeholder
       print("Random stuff")
 
 
 
-class WindowMethods(scipy):
+class WindowFunctions():
    def __init__(self):
       #Another placeholder
       print("Even more random stuff")
 
 
 
-class Graph(pyplot):
+class Graph():
    def __init__(self):
       #
       print(" ")
@@ -48,7 +48,7 @@ class appBackEnd():
 
 
 
-class appWindow(QtWidgets.QWidget):
+class appGUI(QtWidgets.QWidget):
    def __init__(self):
       super().__init__()
 
