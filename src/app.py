@@ -7,11 +7,9 @@
 # Imports
 import sys
 
-
-
 # Local modules and packages
 from backend import *
-from ui import appWindow as ui
+from ui import appWindow as gui
 
 
 
@@ -19,15 +17,15 @@ def main():
    # A quick print environment test
    print("Does anything even work?")
 
-   x = player.player()
+   app = gui.QApplication(sys.argv)
 
-   app = ui.QtWidgets.QApplication([])
+   window = gui.appWindow()
+   window.resize(1280,720)
 
-   y = ui.appWindow()
-   y.resize(1280, 720)
-   y.show()
+   window.show()
 
-   # Exiting the app
+   # Running the Qt loop inside the exit method,
+   # that ceases the application when We exit the loop
    sys.exit(app.exec())
 
 if __name__ == "__main__":
