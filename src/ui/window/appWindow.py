@@ -45,15 +45,21 @@ class appWindow(QMainWindow):
       # Adding the menu bar
       self.menu = self.menuBar()
 
-      # Adding a toolbar
+      # Adding a toolbar and setting some defaults
       self.toolbar = QToolBar("Actions")
       self.toolbar.setIconSize(QSize(32,32))
+      self.toolbar.setMovable(False)
       self.addToolBar(self.toolbar)
       self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
-      ###############################
-      # Extending the functionality #
-      ###############################
+      # Adding a status bar
+      self.statusbar = QStatusBar()
+      self.setStatusBar(self.statusbar)
+      self.statusbar.showMessage("show")
+
+      ################################
+      # Extending menu functionality #
+      ################################
 
       # File menu
       self.fileMenu = self.menu.addMenu("File")
@@ -158,7 +164,6 @@ class appWindow(QMainWindow):
       set_default_filter_action.setStatusTip("Default filter")
       set_default_filter_action.triggered.connect(self.setDefaultFilter)
 
-
       ## Player
 
       # Plays the track
@@ -209,11 +214,10 @@ class appWindow(QMainWindow):
 
 
 
-      ###########################################
-      # Connecting created actions to the menus #
-      ###########################################
+      #######################################
+      # Connecting actions to the file menu #
+      #######################################
 
-      ### Adding actions to the file menu
       self.fileMenu.addAction(new_file_action)
       self.fileMenu.addSeparator()
       self.fileMenu.addAction(open_file_action)
@@ -223,31 +227,60 @@ class appWindow(QMainWindow):
       self.fileMenu.addAction(save_selected_section_action)
       self.fileMenu.addAction(save_separate_channels_action)
 
-      ### Adding actions to edit menu
+      #######################################
+      # Connecting actions to the edit menu #
+      #######################################
+
       self.editMenu.addAction(select_section_action)
       self.editMenu.addSeparator()
       self.editMenu.addAction(select_all_action)
 
-      ### Adding actions to view menu
-      # Channels view
-      channels_view_submenu = self.viewMenu.addMenu("Channels")
-      channels_view_submenu.addAction(show_left_channel_data_action)
-      channels_view_submenu.addAction(show_right_channel_data_action)
-      channels_view_submenu.addAction(show_both_channels_data_action)
+      #######################################
+      # Connecting actions to the view menu #
+      #######################################
+      
+      # Displayed channels submenu
+      displayed_channels_submenu = self.viewMenu.addMenu("Channels")
+      displayed_channels_submenu.addAction(show_left_channel_data_action)
+      displayed_channels_submenu.addAction(show_right_channel_data_action)
+      displayed_channels_submenu.addAction(show_both_channels_data_action)
       self.viewMenu.addSeparator()
-      #
+      
+      # Display freq resp graph on the screen
       self.viewMenu.addAction(show_frequency_response_action)
       self.viewMenu.addSeparator()
+
+      # Display spectral power distribution graph on the screen
       self.viewMenu.addAction(show_spectral_power_distribution_action)
       self.viewMenu.addSeparator()
+
+      # Displays spectrogram graph on the screen
       self.viewMenu.addAction(show_spectrogram_action)
 
-      ### Adding action to the Tools menu
+      #######################################
+      # Connecting actions to the Tools menu #
+      #######################################
+
+      # Filters submenu with added actions
       filters_submenu = self.toolsMenu.addMenu("Filters")
+      filters_submenu.addAction(set_default_filter_action)
+
+      # Player submenu with added actions
       player_submenu = self.toolsMenu.addMenu("Player")
+      player_submenu.addAction(track_play_action)
+      player_submenu.addAction(track_pause_action)
+
+      # Recorder submenu with added actions
       recorder_submenu = self.toolsMenu.addMenu("Recorder")
+      recorder_submenu.addAction(recording_action)
+
+      # Spectrogram submenu with added actions
       spectrogram_submenu = self.toolsMenu.addMenu("Spectrogram")
+
+      # Spectral Power Distribution submenu with added actions
       spectral_power_distribution_submenu = self.toolsMenu.addMenu("Spectral Power Distribution")
+
+      # Freq Resp submenu with added actions
       frequency_response_graph = self.toolsMenu.addMenu("Frequency Response")
 
       #############################################
@@ -271,23 +304,33 @@ class appWindow(QMainWindow):
       self.toolbar.addAction(recording_action)
       self.toolbar.addSeparator()
 
-      # Adding a filters ComboBox to the toolbar
+      ####################################
+      # Adding a ComboBoxes to the toolbar #
+      ####################################
+
+      # Filters
       self.toolbar_filters_combo = QComboBox()
       self.toolbar_filters_combo.addItems(self.list_of_filters)
       self.toolbar.addWidget(self.toolbar_filters_combo)
       self.toolbar.addSeparator()
       self.toolbar_filters_combo.activated.connect(self.toolbarFilterSelector)
 
-      # Adding a window function ComboBox to the toolbar
+      # Window functions
       self.toolbar_windowfn_combo = QComboBox()
       self.toolbar_windowfn_combo.addItems(self.list_of_windows)
       self.toolbar.addWidget(self.toolbar_windowfn_combo)
       self.toolbar.addSeparator()
       self.toolbar_windowfn_combo.activated.connect(self.toolbarWindowFnSelector)
 
-   ### GUI methods definitions
 
-   ## File menu methods
+#################################################################################
+
+
+   ################
+   # File methods #
+   ################
+
+
    def checkIfFileIsSaved(self):
       print("Checking if the files have been saved after creation(graphs, recordings)")
 
@@ -306,7 +349,17 @@ class appWindow(QMainWindow):
    def saveAudioChannelsSeparately(self):
       print("Saves audio channels into separate files")
 
-   ## View menu functionality
+   ###################
+   # Editing methods #
+   ###################
+
+   def selectTimestamp(self):
+      print("Allows selecting of the timestamp")
+
+   ################
+   # View methods #
+   ################
+
 
    def showLeftChannelData(self):
       print("Allows displaying of the left channel data")
@@ -326,11 +379,19 @@ class appWindow(QMainWindow):
    def showSpectrogram(self):
       print("Shows the spectrogram")
 
-   ### Tools menu functionality
+
+   ###################
+   # Filters methods #
+   ###################
 
    ## Filters
+   def setDefaultFilter(self):
+      print("Sets the default filter")
 
-   ## Player
+   ##################
+   # Player methods #
+   ##################
+
 
    def playTrack(self):
       print("Playing the audio track")
@@ -347,31 +408,38 @@ class appWindow(QMainWindow):
    def trackRewind(self):
       print("Rewinding the track")
 
-   ## Recorder
+
+   ####################
+   # Recorder methods #
+   ####################
 
    def startOrStopAudioRecording(self, s):
       print("Starts or pauses the recording, current checked value is = {a}".format(a=s))
 
-   ##
-
-   def selectTimestamp(self):
-      print("Allows selecting of the timestamp")
-
-   def activateFilter(self):
-      print("Activating a fiter, if not selected, highpass is default")
-
-   def deactivateFilter(self):
-      print("Deactivating the filter, returning to clear signal")
-
-   ## Filters
-   def setDefaultFilter(self):
-      print("Sets the default filter")
+   #######################
+   # Spectrogram methods #
+   #######################
 
    ## Window functions
    def setRectangularWindowFunction(self):
       print("Sets triangular window function")
 
-   #### GUI backend
+   #######################################
+   # Spectral Power Distribution methods #
+   #######################################
+
+
+
+   ##############################
+   # Frequency Response methods #
+   ##############################
+
+
+
+   #######################
+   # GUI backend methods #
+   #######################
+   
    def toolbarFilterSelector(self, index):
       print(f"Something was clicked on the combobo, {index}")
 
