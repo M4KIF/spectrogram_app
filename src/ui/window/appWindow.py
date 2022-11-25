@@ -14,6 +14,9 @@ from PyQt6.QtGui import *
 import sys
 import os
 
+# Logic module import
+from ..logic.appLogic import appLogic as logic
+
 
 # Base directory global variable
 basedir = os.path.dirname(__file__)
@@ -38,6 +41,8 @@ class appWindow(QMainWindow):
       #######################################################
 
       super(appWindow, self).__init__(*args, **kwargs)
+
+      self.backend = logic()
 
       # Setting the App title
       self.setWindowTitle("Spectrogram")
