@@ -36,12 +36,18 @@ class appWindow(QMainWindow):
       # Contains the names of window functions
       self.list_of_windows = []
 
+      # Flags initialisation
+      self.m_FilterChanged = True
+      self.m_WindowFunctionChanged = True
+
       #######################################################
       # Initialising the appWindow with basic functionality #
       #######################################################
 
+      # Base class initialisation
       super(appWindow, self).__init__(*args, **kwargs)
 
+      # Initialising the appLogic class with all of the needed functionality
       self.backend = logic()
 
       # Setting the App title
@@ -123,7 +129,7 @@ class appWindow(QMainWindow):
       # Select Whole File
       select_all_action = QAction(QIcon(os.path.join(basedir, "icons/selection-select.png")), "Select All", self)
       select_all_action.setStatusTip("Allows selection of timestamp of the file\nfor creating the graphs")
-      select_all_action.triggered.connect(self.selectTimestamp)
+      select_all_action.triggered.connect(self.selectWholeFile)
 
 
       #########################
@@ -204,6 +210,7 @@ class appWindow(QMainWindow):
       recording_action.setCheckable(True)
       recording_action.triggered.connect(self.startOrStopAudioRecording)
 
+      ## Spectrogram
 
       # Percentile coverage
       percentile_coverage = QAction()
@@ -211,13 +218,19 @@ class appWindow(QMainWindow):
       ## Window functions
       rectangular_window_function_action = QAction("Rectangular", self)
       rectangular_window_function_action.setStatusTip("Selects a rectangular window")
-      rectangular_window_function_action.triggered.connect(self.setRectangularWindowFunction)      
+      rectangular_window_function_action.triggered.connect(self.setRectangularWindowFunction)    
+
+      ## Spectral Power Distribution
+
+
 
       ##############################
       # Creating Help Actions #
       ##############################
 
-
+      help_action = QAction("About The Program", self)
+      help_action.setStatusTip("dunno")
+      help_action.triggered.connect(self.displayProgramInfo)
 
       #######################################
       # Connecting actions to the file menu #
@@ -285,9 +298,6 @@ class appWindow(QMainWindow):
       # Spectral Power Distribution submenu with added actions
       spectral_power_distribution_submenu = self.toolsMenu.addMenu("Spectral Power Distribution")
 
-      # Freq Resp submenu with added actions
-      frequency_response_graph = self.toolsMenu.addMenu("Frequency Response")
-
       #############################################
       # Connecting created actions to the toolbar #
       #############################################
@@ -335,7 +345,6 @@ class appWindow(QMainWindow):
    # File methods #
    ################
 
-
    def checkIfFileIsSaved(self):
       print("Checking if the files have been saved after creation(graphs, recordings)")
 
@@ -361,10 +370,12 @@ class appWindow(QMainWindow):
    def selectTimestamp(self):
       print("Allows selecting of the timestamp")
 
+   def selectWholeFile(self):
+      print("Selects whole file")
+
    ################
    # View methods #
    ################
-
 
    def showLeftChannelData(self):
       print("Allows displaying of the left channel data")
@@ -384,7 +395,6 @@ class appWindow(QMainWindow):
    def showSpectrogram(self):
       print("Shows the spectrogram")
 
-
    ###################
    # Filters methods #
    ###################
@@ -396,7 +406,6 @@ class appWindow(QMainWindow):
    ##################
    # Player methods #
    ##################
-
 
    def playTrack(self):
       print("Playing the audio track")
@@ -413,10 +422,12 @@ class appWindow(QMainWindow):
    def trackRewind(self):
       print("Rewinding the track")
 
-
    ####################
    # Recorder methods #
    ####################
+
+   def saveRecordedAudio(self):
+      print("")
 
    def startOrStopAudioRecording(self, s):
       print("Starts or pauses the recording, current checked value is = {a}".format(a=s))
@@ -424,6 +435,10 @@ class appWindow(QMainWindow):
    #######################
    # Spectrogram methods #
    #######################
+
+   # 
+   def createSpectrogramGraph(self):
+      print("")
 
    ## Window functions
    def setRectangularWindowFunction(self):
@@ -433,13 +448,15 @@ class appWindow(QMainWindow):
    # Spectral Power Distribution methods #
    #######################################
 
+   def createSpectralPowerDistributionGraph(self):
+      print("")
 
+   ################
+   # Help methods #
+   ################
 
-   ##############################
-   # Frequency Response methods #
-   ##############################
-
-
+   def displayProgramInfo(self):
+      print("Displays usefull information")
 
    #######################
    # GUI backend methods #
