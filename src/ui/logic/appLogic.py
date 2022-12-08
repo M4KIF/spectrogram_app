@@ -43,7 +43,7 @@ class appLogic():
       self.spectro_channel_1 = None
       self.spectro_channel_2 = None
 
-      # The default range is set to narrow
+      # The default range is set to narrow.
       self.selectedRange = 0
       self.narrowBandWindow = None
       self.wideBandWindow = None 
