@@ -427,6 +427,10 @@ class Window(QMainWindow):
       ####################################
 
       # Window functions
+      self.window_function_label = QLabel()
+      self.window_function_label.setText(" Window Function: ")
+      self.toolbar.addWidget(self.window_function_label)
+
       self.toolbar_windows_combo = QComboBox()
       self.toolbar_windows_combo.addItems(self.backend.listOfWindows)
       self.toolbar.addWidget(self.toolbar_windows_combo)
@@ -434,17 +438,30 @@ class Window(QMainWindow):
       self.toolbar_windows_combo.activated.connect(self.toolbarWindowSelector)
 
       # Narrow/Wideband
+      self.range_label = QLabel()
+      self.range_label.setText(" Range: ")
+      self.toolbar.addWidget(self.range_label)
+
       self.toolbar_spectrogram_range_combo = QComboBox()
       self.toolbar_spectrogram_range_combo.addItems(self.backend.spectrogramBand)
       self.toolbar.addWidget(self.toolbar_spectrogram_range_combo)
       self.toolbar.addSeparator()
       self.toolbar_spectrogram_range_combo.activated.connect(self.toolbarSpectrogramRangeSelector)
 
-      # nperseg slider
+      # overlap slider
+      self.slider_label = QLabel()
+      self.slider_label.setText(" Window Overlap: ")
+      self.toolbar.addWidget(self.slider_label)
+
+      self.currentSliderValue = 0
+
+      self.slider_value = QLabel()
+      self.slider_value.setText(f" {self.currentSliderValue}  ")
+      self.toolbar.addWidget(self.slider_value)
       self.sld = QSlider(Qt.Horizontal)
-      self.sld.setRange(2, 30)
-      self.sld.setGeometry(0,0,10,5)  
-      self.sld.valueChanged.connect(self.npersegSlider)
+      self.sld.setRange(1, 100)
+      self.sld.setGeometry(30, 40, 200, 30)
+      self.sld.valueChanged.connect(self.overlapSlider)
       self.toolbar.addWidget(self.sld)
 
       # Window functions
@@ -494,9 +511,15 @@ class Window(QMainWindow):
 
 #################################################################################
 
-   def npersegSlider(self, value):
-      print('')
-      self.backend.window_overlap = value
+   def overlapSlider(self, value):
+      if self.backend.fileRead:
+         self.backend.setOverlap(value)
+         self.currentSliderValue = value
+         self.slider_label.setText(f" {self.currentSliderValue}  ")
+         self.backend.calculateSpectrogram()
+         self.spectrogram_widget.clearCanvas()
+         self.addSpectrogram()
+         self.spectrogram_widget.updateAxes()
 
    # After opening a new file
    def createBaseLayout(self):
@@ -643,9 +666,6 @@ class Window(QMainWindow):
 
       # Reading the file content
       self.backend.openAudioFile()
-
-      # Setting the right slider value
-      self.sld.setRange(2, 15)
       
       # Adding the spectrogram
       self.spectrogram_widget.clearCanvas()
@@ -825,7 +845,7 @@ class Window(QMainWindow):
       self.spectrogram_widget.updateAxes()
 
    def toolbarSpectrogramRangeSelector(self, index):
-      self.backend.chooseSpectrum(index)
+      self.backend.chooseSpectrumWidth(index)
 
       self.spectrogram_widget.clearCanvas()
       self.backend.calculateSpectrogram()
