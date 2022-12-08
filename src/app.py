@@ -19,8 +19,8 @@ def main():
 
    app = gui.QApplication(sys.argv)
 
-   window = gui.appWindow()
-   window.resize(1280,720)
+   window = gui.Window()
+   window.setFixedSize(1280,720)
 
    window.show()
 
