@@ -61,7 +61,7 @@ class PlotCanvas(FigureCanvasQTAgg):
       super(PlotCanvas, self).__init__(self.m_Figure)
 
       # Changing the layout to tight
-      self.m_Figure.tight_layout() 
+      self.m_Figure.tight_layout()
 
    def addSinglePlot(self):
       self.m_Plots = self.m_Figure.subplots()
@@ -114,17 +114,6 @@ class Window(QMainWindow):
       #################################################
       # Base informations and data needed for runtime #
       #################################################
-
-      self.freq_resp = PlotCanvas(self, width=14, height=1, dpi=100)
-      self.mono_spectrogram = PlotCanvas(self, width=14, height=5, dpi=100)
-      self.left_channel_spectrogram = PlotCanvas(self, width=7, height=5, dpi=100)
-      self.right_channel_spectrogram = PlotCanvas(self, width=7, height=5, dpi=100)
-
-      # Contains the names of the filters
-      self.list_of_windows = ["tukey", "boxcar", "flattop"]
-
-      # Contains the names of window functions
-      self.list_of_filters = []
 
       # Flags initialisation
       self.m_FilterChanged = True
@@ -432,7 +421,7 @@ class Window(QMainWindow):
       self.toolbar.addWidget(self.window_function_label)
 
       self.toolbar_windows_combo = QComboBox()
-      self.toolbar_windows_combo.addItems(self.backend.listOfWindows)
+      self.toolbar_windows_combo.addItems(self.backend.getWindowFunctionsList())
       self.toolbar.addWidget(self.toolbar_windows_combo)
       self.toolbar.addSeparator()
       self.toolbar_windows_combo.activated.connect(self.toolbarWindowSelector)
@@ -443,7 +432,7 @@ class Window(QMainWindow):
       self.toolbar.addWidget(self.range_label)
 
       self.toolbar_spectrogram_range_combo = QComboBox()
-      self.toolbar_spectrogram_range_combo.addItems(self.backend.spectrogramBand)
+      self.toolbar_spectrogram_range_combo.addItems(self.backend.getSpectrogramBandsList())
       self.toolbar.addWidget(self.toolbar_spectrogram_range_combo)
       self.toolbar.addSeparator()
       self.toolbar_spectrogram_range_combo.activated.connect(self.toolbarSpectrogramRangeSelector)
@@ -511,23 +500,28 @@ class Window(QMainWindow):
 
 #################################################################################
 
+
    def overlapSlider(self, value):
-      if self.backend.fileRead:
-         self.backend.setOverlap(value)
+
+      if self.backend.getFileStatus():
+         # Sets the percentile value of the overlap
+         self.backend.setWindowOverlapPercentage(value)
+
          self.currentSliderValue = value
-         self.slider_label.setText(f" {self.currentSliderValue}  ")
-         self.backend.calculateSpectrogram()
+         self.slider_value.setText(f" {self.currentSliderValue}  ")
+
+         # Calculating the spectrogram and making the updates visible on the screen
          self.spectrogram_widget.clearCanvas()
          self.addSpectrogram()
          self.spectrogram_widget.updateAxes()
 
    # After opening a new file
    def createBaseLayout(self):
-      self.freq_resp_widget = PlotCanvas(self, width=12, height=1, dpi=100)
-      self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=100)
+      self.freq_resp_widget = PlotCanvas(self, width=12, height=1, dpi=101)
+      self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=101)
       self.spectrogram_widget.addTwoHorizontalPlots()
       self.freq_resp_widget.addSinglePlot()
-      self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=100)
+      self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=101)
       self.spectral_distribution_widget.addTwoVerticalPlots()
 
       self.baseLayout = QGridLayout()
@@ -549,75 +543,47 @@ class Window(QMainWindow):
       self.spectral_distribution_widget.clearCanvas()
 
    def addFrequencyResponse(self):
-      # I have to check how many channels does the file have
-      if self.backend.mono:
-         # Adding a single plot
-         self.freq_resp_widget.addSinglePlot()
+
+
+      # Adding a single plot
+      self.freq_resp_widget.addSinglePlot()
 
          # Adding the data
-         self.freq_resp_widget.m_Plots.set_yticks([])
-         self.freq_resp_widget.m_Plots.set_xticks([])
-         self.freq_resp_widget.m_Plots.plot(self.backend.time, self.backend.channel_1)
+      self.freq_resp_widget.m_Figure.tight_layout()
+      self.freq_resp_widget.m_Plots.set_yticks([])
+      self.freq_resp_widget.m_Plots.set_xticks([])
+      self.freq_resp_widget.m_Plots.plot(self.backend.getFileTimeData(), self.backend.getFileData())
 
-         self.span = SpanSelector(
-            self.freq_resp_widget.m_Plots,
-            self.onselect,
-            "horizontal",
-            useblit=True,
-            props=dict(alpha=0.5, facecolor="tab:blue"),
-            interactive=True,
-            drag_from_anywhere=True
-         )
-      elif self.backend.stereo:
-         self.freq_resp_widget.addTwoHorizontalPlots()
+      self.span = SpanSelector(
+         self.freq_resp_widget.m_Plots,
+         self.onselect,
+         "horizontal",
+         useblit=True,
+         props=dict(alpha=0.5, facecolor="tab:blue"),
+         interactive=True,
+         drag_from_anywhere=True
+      )
 
-         self.freq_resp_widget.m_Plots[0].set_yticks([])
-         self.freq_resp_widget.m_Plots[0].set_yticklabels([])
-         self.freq_resp_widget.m_Plots[0].set_xticks([])
-         self.freq_resp_widget.m_Plots[1].set_yticks([])
-         self.freq_resp_widget.m_Plots[1].set_yticklabels([])
-         self.freq_resp_widget.m_Plots[1].set_xticks([])
-
-         self.freq_resp_widget.m_Plots[0].plot(self.backend.time, self.backend.channel_1)
-         self.freq_resp_widget.m_Plots[1].plot(self.backend.time, self.backend.channel_2)
-
-         self.span_left = SpanSelector(
-            self.freq_resp_widget.m_Plots[0].axes,
-            self.onselect,
-            "horizontal",
-            useblit=True,
-            props=dict(alpha=0.5, facecolor="tab:blue"),
-            interactive=True,
-            drag_from_anywhere=True
-         )
-         self.span_right = SpanSelector(
-            self.freq_resp_widget.m_Plots[1].axes,
-            self.onselect,
-            "horizontal",
-            useblit=True,
-            props=dict(alpha=0.5, facecolor="tab:blue"),
-            interactive=True,
-            drag_from_anywhere=True
-         )
-      else:
-         print('I have to display an error window here')
 
    def addSpectrogram(self):
       # Calling the backend fucntion for creating a spectrogram
       self.backend.calculateSpectrogram()
 
-      if self.backend.mono:
+      if self.backend.getMonoStatus():
          self.spectrogram_widget.addSinglePlot()
 
-         self.spectrogram_widget.m_Plots.set_yticks([])
-         self.spectrogram_widget.m_Plots.set_xticks([])
+         #self.spectrogram_widget.m_Figure.set_size_inches(11, 5)
+         self.spectrogram_widget.m_Figure.tight_layout()
+         #self.spectrogram_widget.m_Plots.set_yticks([])
+         #self.spectrogram_widget.m_Plots.set_xticks([])
 
-         self.spectrogram_widget.m_Plots.pcolormesh(self.backend.segments_channel_1, self.backend.freq_channel_1, self.backend.spectro_channel_1, cmap="plasma")
-      elif self.backend.stereo:
+         self.spectrogram_widget.m_Plots.pcolormesh(self.backend.getFirstChannelTimeSegments(), self.backend.getFirstChannelFrequencySamples(), self.backend.getFirstChannelSpectrogramData(), cmap="plasma")
+      elif self.backend.getStereoStatus():
          self.spectrogram_widget.addTwoHorizontalPlots()
+         self.spectrogram_widget.m_Figure.tight_layout()
 
-         self.spectrogram_widget.m_Plots[0].pcolormesh(self.backend.segments_channel_1, self.backend.freq_channel_1, self.backend.spectro_channel_1, cmap="plasma")
-         self.spectrogram_widget.m_Plots[1].pcolormesh(self.backend.segments_channel_2, self.backend.freq_channel_2, self.backend.spectro_channel_2, cmap="plasma")
+         self.spectrogram_widget.m_Plots[0].pcolormesh(self.backend.getFirstChannelTimeSegments(), self.backend.getFirstChannelFrequencySamples(), self.backend.getFirstChannelSpectrogramData(), cmap="plasma")
+         self.spectrogram_widget.m_Plots[1].pcolormesh(self.backend.getSecondChannelTimeSegments(), self.backend.getSecondChannelFrequencySamples(), self.backend.getSecondChannelSpectrogramData(), cmap="plasma")
       else:
          print('I have to display an error window here')
 
@@ -629,15 +595,14 @@ class Window(QMainWindow):
 
    def onselect(self, xmin, xmax):
       #indmin, indmax = np.searchsorted(self.backend.time, (xmin, xmax))
-      indmin, indmax = self.backend.time.searchsorted((xmin, xmax))
-      indmax = min(len(self.backend.time) - 1, indmax)
+      indmin, indmax = self.backend.getFileTimeData().searchsorted((xmin, xmax))
+      indmax = min(len(self.backend.getFileTimeData()) - 1, indmax)
 
       #region_x = self.x[indmin:indmax]
       #region_y = self.y[indmin:indmax]
-      self.backend.editRange(indmin, indmax)
+      self.backend.setFileSegment(int(indmin), int(indmax))
 
       self.spectrogram_widget.clearCanvas()
-      self.backend.calculateSpectrogram()
       self.addSpectrogram()
       self.spectrogram_widget.updateAxes()
 
@@ -657,20 +622,18 @@ class Window(QMainWindow):
 
    def openFileFromDirectory(self):
       # Checking if any wile was read before
-      if self.backend.fileRead:
+      if self.backend.getFileStatus():
          self.clearPlotWidgets()
 
       # Getting the filename from the dialog window
-      filename=QFileDialog.getOpenFileName(self, 'Open file', '', '')
-      self.backend.openedFilename = filename[0]
+      name=QFileDialog.getOpenFileName(self, 'Open file', '', '')
 
       # Reading the file content
-      self.backend.openAudioFile()
+      self.backend.openFile(filename=name[0])
       
       # Adding the spectrogram
       self.spectrogram_widget.clearCanvas()
       self.freq_resp_widget.clearCanvas()
-      self.backend.calculateSpectrogram()
       self.addFrequencyResponse()
       self.addSpectrogram()
       self.spectrogram_widget.updateAxes()
@@ -684,8 +647,12 @@ class Window(QMainWindow):
       print("Classic save functionality, overrides the file content, keeps the name")
 
    def exportPlots(self):
-      name = QFileDialog.getSaveFileName(self, 'Save File')
-      self.sc.fig.savefig(str(name[0]))
+      #name = QFileDialog.getSaveFileName(self, 'Save File')
+      #self.sc.fig.savefig(str(name[0]))
+
+      self.freq_resp_widget.m_Figure.savefig("ajla")
+      self.spectrogram_widget.m_Figure.savefig("bajla")
+      self.spectral_distribution_widget.savefig("morela")
 
    def saveFileWithSelectedTimestamp(self):
       print("Saves the selected timestamp")
@@ -829,26 +796,27 @@ class Window(QMainWindow):
    ################
 
    def displayProgramInfo(self):
-      print("Displays usefull information")
+      print("Displays useful information")
 
    #######################
    # GUI backend methods #
    #######################
    
-   def toolbarWindowSelector(self, index):
-      print(f"Something was clicked on the combobo, {self.backend.listOfWindows[index]}")
-      self.backend.choosenWindow = self.backend.listOfWindows[index]
+   def toolbarWindowSelector(self, ind):
+
+      # Passing in the index argument
+      self.backend.setWindowFunction(index=ind)
 
       self.spectrogram_widget.clearCanvas()
-      self.backend.calculateSpectrogram()
       self.addSpectrogram()
       self.spectrogram_widget.updateAxes()
 
    def toolbarSpectrogramRangeSelector(self, index):
-      self.backend.chooseSpectrumWidth(index)
+
+      # Passing in the index argument
+      self.backend.setSpectrogramBand(index)
 
       self.spectrogram_widget.clearCanvas()
-      self.backend.calculateSpectrogram()
       self.addSpectrogram()
       self.spectrogram_widget.updateAxes()
 
