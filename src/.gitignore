@@ -8,6 +8,7 @@ __pycache__/
 *.so
 *.wav
 *.png
+*.txt
 *~
 
 # due to using tox and pytest
