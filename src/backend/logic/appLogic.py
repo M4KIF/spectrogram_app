@@ -41,7 +41,7 @@ class appLogic(QObject):
    set_filename = pyqtSignal(str)
    set_window_function = pyqtSignal(int)
    set_spectrogram_band = pyqtSignal(int)
-   set_file_segment = pyqtSignal([int, int])
+   set_file_segment = pyqtSignal(list)
    set_window_overlap_percentage = pyqtSignal(int)
 
    # Those are signals to be emitted from the main section. Here they will be captured
@@ -49,6 +49,7 @@ class appLogic(QObject):
    get_spectrogram_bands_list = pyqtSignal()
    get_window_function = pyqtSignal()
    get_spectrogram_band = pyqtSignal()
+   get_file_name = pyqtSignal()
    get_file_segment = pyqtSignal()
    get_overlap_percentage = pyqtSignal()
    get_file_data = pyqtSignal()
@@ -62,6 +63,7 @@ class appLogic(QObject):
    send_spectrogram_bands_list = pyqtSignal(list)
    send_window_function = pyqtSignal(str)
    send_spectrogram_band = pyqtSignal(str)
+   send_file_name = pyqtSignal(str)
    send_file_segment = pyqtSignal(list)
    send_overlap_percentage = pyqtSignal(int)
    send_file_data = pyqtSignal(np.ndarray)
@@ -77,7 +79,9 @@ class appLogic(QObject):
    playback_status = pyqtSignal()
 
    # 
+   create_file = pyqtSignal(str)
    open_file = pyqtSignal(str)
+   save_file = pyqtSignal()
 
    # Emitted from the main section of the program and captured here
    prepare_freq_response_data = pyqtSignal()
@@ -113,6 +117,7 @@ class appLogic(QObject):
       self.get_spectrogram_bands_list.connect(self.getSpectrogramBandsList)
       self.get_window_function.connect(self.getWindowFunction)
       self.get_spectrogram_band.connect(self.getSpectrogramBand)
+      self.get_file_name.connect(self.getFileName)
       self.get_file_segment.connect(self.getFileSegment)
       self.get_overlap_percentage.connect(self.getOverlapPercentage)
       self.get_file_data.connect(self.getFileData)
@@ -122,7 +127,9 @@ class appLogic(QObject):
       self.get_mono_status.connect(self.getMonoStatus)
       self.get_stereo_status.connect(self.getStereoStatus)
 
+      self.create_file.connect(self.createFile)
       self.open_file.connect(self.openFile)
+      self.save_file.connect(self.saveFile)
 
       self.prepare_freq_response_data.connect(self.calculateFrequencyResponse)
       self.prepare_spectrogram_data.connect(self.calculateSpectrogram)
@@ -135,14 +142,14 @@ class appLogic(QObject):
       # Lists of selectable options
       self.m_ListOfWindowFunctions = ["tukey", "triang", "flattop", "exponential"]
       self.m_ListOfFilters = []
-      self.m_SpectrogramBand = ["Narrow", "Wide"]
+      self.m_SpectrogramBand = ["narrow", "wide"]
 
       ##################
       # File variables #
       ##################
 
       # Passed filename
-      self.m_ObtainedFileName = str()
+      self.m_FileName = None
 
       # File data
       self.m_Data = None
@@ -239,6 +246,7 @@ class appLogic(QObject):
       # State of the file flags
       self.mb_FileOpened = False
       self.mb_SegmentSelected = False
+      self.mb_FileSaved = False
 
       # Opened file channel count flags
       self.mb_MonoChannelHandled = False
@@ -260,8 +268,8 @@ class appLogic(QObject):
    #####################
 
 
-   def setFileName(self, filename=str()):
-      self.m_ObtainedFileName = filename
+   def setFileName(self, filename=str):
+      self.m_FileName = filename
 
 
    # Changes the currently set window function
@@ -315,11 +323,11 @@ class appLogic(QObject):
 
 
    # Sets the file segment after checking the safety statements
-   def setFileSegment(self, start=None, end=None):
+   def setFileSegment(self, time):
 
-      if type(start)!=int and type(end)!=int:
+      if type(time[0])!=int and type(time[1])!=int:
          raise TypeError("Incorrect parameters")
-      elif start > end or (start == 0 and end == 0):
+      elif time[0] > time[1] or (time[0] == 0 and time[1] == 0):
          mutex.lock()
 
          # Resets to default values
@@ -336,12 +344,12 @@ class appLogic(QObject):
          self.mb_SegmentSelected = True
 
          # Settting the values 
-         self.m_FirstSelectedSample = start
-         self.m_LastSelectedSample = end
+         self.m_FirstSelectedSample = time[0]
+         self.m_LastSelectedSample = time[1]
 
          # If the segment happens to be shorter than the window
          if self.mb_WindowLengthsCalculated:
-            if (end - start) < self.m_WindowLength:
+            if (time[1] - time[0]) < self.m_WindowLength:
                self.setDefaultFileSegment()
          
          mutex.unlock()
@@ -376,9 +384,10 @@ class appLogic(QObject):
    def getWindowFunctionsList(self):
       
       # Emititng the signal with data
-      self.send_window_function_list.emit(self.m_ListOfWindowFunctions)
+      print("jezech")
+      self.send_window_function_list.emit(self.m_ListOfWindowFunctions.copy())
 
-      return self.m_ListOfWindowFunctions
+      #return self.m_ListOfWindowFunctions
 
 
    # Returns the list of band of the spectrogram
@@ -406,6 +415,14 @@ class appLogic(QObject):
       self.send_spectrogram_band.emit(self.m_CurrentSpectrogramBand)
 
       return self.m_CurrentSpectrogramBand
+
+   def getFileName(self):
+
+      # Emititng the signal with data
+      self.send_file_name.emit(self.m_FileName)
+
+
+      return self.m_FileName
 
 
    # Returns a tuple of default range
@@ -517,13 +534,19 @@ class appLogic(QObject):
 
 
    # Set the values needed for audio recording
-   def createFile(self, chunksize=1024, sampleformat=pa.paInt16, channels=2, fs=44100, seconds=3):
+   def createFile(self, name=str, chunksize=1024, sampleformat=pa.paInt16, channels=2, fs=44100, seconds=3):
+
+      # Setting variables needed to record audio
       self.m_Chunk = chunksize
       self.m_SampleFormat = sampleformat
       self.m_ChannelsToRecord = channels
       self.m_RecordSamplingFrequency = fs
       self.m_SecondsStored = seconds
 
+      # Setting the filename
+      self.m_FileName = name
+
+      # Opening the audio interface
       self.m_AudioInterface = pa.PyAudio()
 
 
@@ -538,12 +561,12 @@ class appLogic(QObject):
       else:
          mutex.lock()
          # Setting the name of the currently active file
-         self.m_ObtainedFileName = filename
+         self.m_FileName = filename
          mutex.unlock()
          
       try:
          mutex.lock()
-         self.m_SamplingFrequency, self.m_Data = wavfile.read(self.m_ObtainedFileName)
+         self.m_SamplingFrequency, self.m_Data = wavfile.read(self.m_FileName)
          mutex.unlock()
       except:
          raise RuntimeError("Could't open the file")
@@ -597,10 +620,13 @@ class appLogic(QObject):
 
    # Writes to the current name if no name is present in the logic, raises an exception
    def saveFile(self):
-      if self.m_ObtainedFileName == None:
+      if self.m_FileName == None:
          raise RuntimeError("No filename selected")
       elif self.mb_FileOpened == False:
          raise RuntimeError("File not opened")
+      
+      print("Dotarlo?")
+      
 
 
    # Gives the opportunity to change the name of the file before saving

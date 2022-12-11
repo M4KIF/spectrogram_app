@@ -119,45 +119,72 @@ class PlotCanvas(FigureCanvasQTAgg):
 
 # GUI class, implements the functionality from the backend 
 class Window(QMainWindow):
+
    def __init__(self, *args, **kwargs):
 
-      #################################################
-      # Base informations and data needed for runtime #
-      #################################################
+      # Base class initialisation
+      super(Window, self).__init__(*args, **kwargs)
 
-      # Flags initialisation
-      self.m_FilterChanged = True
-      self.m_WindowFunctionChanged = True
+      # App name
+      self.m_AppName = "Spectroapp"
 
-      self.displayingMonoSpectrogram = False
-      self.displayingStereoSpectrogram = False
+      #####################
+      # Runtime variables #
+      #####################
+
+
+      self.m_FileName = str
+      self.m_WindowFunctionList = []
+      self.m_SpectrogramBandsList = []
+      self.m_OverlapPercentage = None
+
+      self.m_FileData = np.ndarray()
+      self.m_TimeData = np.ndarray()
+      self.m_SpectrogramData = [[], []]
+
+      self.mb_FileOpened = False
+      self.mb_Mono = False
+      self.mb_Stereo = False
+
+
+      #
+      # Backend mt functionality #
+      #
+
+
+      # Defining the backend object
+      self.backend = logic()
+
+      # Connecting the signals
+
+      self.backend.send_file_name.connect(self.setFileName)
+      self.backend.send_window_function_list.connect(self.setWindowFunctions)
+      self.backend.send_spectrogram_bands_list.connect(self.setSpectrogramBands)
+      self.backend.send_overlap_percentage.connect(self.setOverlapPercentage)
+      self.backend.send_file_status.connect(self.setFileFlag)
+      self.backend.send_mono_status.connect(self.setMonoFlag)
+      self.backend.send_stereo_status.connect(self.setStereoFlag)
+      self.backend.send_file_data.connect(self.setFileData)
+      self.backend.send_time_data.connect(self.setTimeData)
+      self.backend.send_channel_data.connect(self.setSpectrogramData)
+
+      # Getting the data
+      self.backend.get_window_function_list.emit()
+      self.backend.get_spectrogram_bands_list.emit()
+
 
       #######################################################
       # Initialising the appWindow with basic functionality #
       #######################################################
 
-      # Base class initialisation
-      super(Window, self).__init__(*args, **kwargs)
-
       # Adding a toolbar and setting some defaults
-      self.toolbar = QToolBar("Actions")
+      self.toolbar = QToolBar("Audio file actions")
       self.toolbar.setIconSize(QSize(32,32))
       self.toolbar.setMovable(False)
       self.toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
-      
+      # Adding the toolbar to the main window
       self.addToolBar(self.toolbar)
-
-
-
-      #self.layout = QGridLayout(self)
-      #self.layout.addWidget(self.freq_resp, 56, 0, 3, 48, Qt.AlignmentFlag.AlignBottom)
-
-      # Initialising the appLogic class with all of the needed functionality
-      self.backend = logic()
-
-      # Setting the App title
-      self.setWindowTitle("Spectrogram")
 
       # Adding the menu bar
       self.menu = QMainWindow.menuBar(self)
@@ -165,8 +192,11 @@ class Window(QMainWindow):
       # Adding a status bar
       self.statusbar = QStatusBar()
       self.setStatusBar(self.statusbar)
-      self.statusbar.showMessage("Here I will print bitrate and all of this stuff")
+      self.statusbar.showMessage("Various informations")
       self.statusbar.show()
+
+      # Setting the App title
+      self.setWindowTitle(self.m_AppName)
       
       ################################
       # Extending menu functionality #
@@ -196,28 +226,21 @@ class Window(QMainWindow):
       # Save file with override
       save_file_action = QAction(QIcon(os.path.join(basedir, "icons/disk--pencil.png")), "Save File", self)
       save_file_action.setStatusTip("Saves the file with override")
-      save_file_action.triggered.connect(self.saveFileWithCurrentName)
+      save_file_action.triggered.connect(self.backend.save_file)
       
       # Save file as
       save_file_as_action = QAction(QIcon(os.path.join(basedir, "icons/disk--plus.png")), "Save As", self)
       save_file_as_action.setStatusTip("Saves the file without override")
-      save_file_as_action.triggered.connect(self.saveFileWithAnotherName)
+      save_file_as_action.triggered.connect(self.saveFileWithCurrentName)
 
       # Save selected timestamp
-      save_plot_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-external-link-24.png")), "Export Plot", self)
-      save_plot_action.setStatusTip("Saves the selected timestamp")
-      save_plot_action.triggered.connect(self.exportPlots)
-
-      # Save with separate channels
-      save_separate_channels_action = QAction(QIcon(os.path.join(basedir, "icons/disks.png")), "Save Separate Audio Channels", self)
-      save_separate_channels_action.setStatusTip("Saves the right and left channel in separate files")
-      save_separate_channels_action.triggered.connect(self.saveAudioChannelsSeparately)
+      export_plot_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-external-link-24.png")), "Export Plot", self)
+      export_plot_action.setStatusTip("Saves the selected timestamp")
+      export_plot_action.triggered.connect(self.exportPlots)
 
       ##########################
-      # Creating Tools Actions #
+      # Playback and recording actions #
       ##########################
-
-      ## Player
 
       # Plays the track
       track_play_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-play-24.png")), "Play", self)
@@ -244,8 +267,6 @@ class Window(QMainWindow):
       track_rewind_action.setStatusTip("Rewinds the track")
       track_rewind_action.triggered.connect(self.trackRewind)
 
-      ## Recorder
-
       # Start recording audio
       recording_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-micro-24.png")), "Start/Stop recording", self)
       recording_action.setStatusTip("Starts the recording")
@@ -257,7 +278,7 @@ class Window(QMainWindow):
       ##############################
 
       help_action = QAction("About The Program", self)
-      help_action.setStatusTip("dunno")
+      help_action.setStatusTip(".")
       help_action.triggered.connect(self.displayProgramInfo)
 
       #######################################
@@ -270,8 +291,8 @@ class Window(QMainWindow):
       self.fileMenu.addSeparator()
       self.fileMenu.addAction(save_file_action)
       self.fileMenu.addAction(save_file_as_action)
-      self.fileMenu.addAction(save_plot_action)
-      self.fileMenu.addAction(save_separate_channels_action)
+      self.fileMenu.addSeparator()
+      self.fileMenu.addAction(export_plot_action)
 
       #######################################
       # Connecting actions to the Tools menu #
@@ -296,11 +317,8 @@ class Window(QMainWindow):
       # Connecting created actions to the toolbar #
       #############################################
 
-      self.toolbar.addAction(save_plot_action)
+      self.toolbar.addAction(export_plot_action)
       self.toolbar.addSeparator()
-      #self.toolbar.addAction(select_section_action)
-      #self.toolbar.addAction(select_all_action)
-      #self.toolbar.addSeparator()
       self.toolbar.addAction(track_play_action)
       self.toolbar.addAction(track_pause_action)
       self.toolbar.addAction(track_stop_action)
@@ -314,27 +332,18 @@ class Window(QMainWindow):
       # Adding a ComboBoxes to the toolbar #
       ####################################
 
-      # Window functions
-      self.window_function_label = QLabel()
-      self.window_function_label.setText(" Window Function: ")
-      self.toolbar.addWidget(self.window_function_label)
-
       self.toolbar_windows_combo = QComboBox()
-      self.toolbar_windows_combo.addItems(self.backend.getWindowFunctionsList())
+      self.toolbar_windows_combo.addItems(self.m_WindowFunctionList)
       self.toolbar.addWidget(self.toolbar_windows_combo)
       self.toolbar.addSeparator()
-      self.toolbar_windows_combo.activated.connect(self.toolbarWindowSelector)
+      self.toolbar_windows_combo.activated.connect(self.setWindowFunction)
 
-      # Narrow/Wideband
-      self.range_label = QLabel()
-      self.range_label.setText(" Range: ")
-      self.toolbar.addWidget(self.range_label)
 
       self.toolbar_spectrogram_range_combo = QComboBox()
-      self.toolbar_spectrogram_range_combo.addItems(self.backend.getSpectrogramBandsList())
+      self.toolbar_spectrogram_range_combo.addItems(self.m_SpectrogramBandsList)
       self.toolbar.addWidget(self.toolbar_spectrogram_range_combo)
       self.toolbar.addSeparator()
-      self.toolbar_spectrogram_range_combo.activated.connect(self.toolbarSpectrogramRangeSelector)
+      self.toolbar_spectrogram_range_combo.activated.connect(self.setSpectrogramBand)
 
       # overlap slider
       self.slider_label = QLabel()
@@ -352,52 +361,128 @@ class Window(QMainWindow):
       self.sld.valueChanged.connect(self.overlapSlider)
       self.toolbar.addWidget(self.sld)
 
-      # Window functions
-      #self.toolbar_windowfn_combo = QComboBox()
-      #self.toolbar_windowfn_combo.addItems(self.list_of_windows)
-      #self.toolbar.addWidget(self.toolbar_windowfn_combo)
-      #self.toolbar.addSeparator()
-      #self.toolbar_windowfn_combo.activated.connect(self.toolbarWindowFnSelector)
-
-      np.random.seed(19680801)
-
-      #self.mainLayout = QGridLayout()
-      self.freqRespLayout = QVBoxLayout(self)
-      #self.mainLayout.addLayout(self.freqRespLayout, 1, 1, Qt.AlignmentFlag.AlignBottom)
-
-      self.fileOpenedFlag = False
-
-      spacer = QSpacerItem(60, 32, QSizePolicy.Minimum, QSizePolicy.Expanding)
-      #self.layout.addWidget(self.toolbar, 0, 0, 2, 32, Qt.AlignmentFlag.AlignTop)
-      #self.layout.addItem(spacer, 0, 0, Qt.AlignmentFlag.AlignTop)
-
-      #self.layout.addWidget(OverloadedPlotToolbar(self.sc, self))
-      #self.main_widget.setLayout(self.layout)
-      #self.setLayout(self.mainLayout)
-
-      #self.sc.axes.set_xticklabels([])
-      #self.sc.axes.set_yticklabels([])
-
-      self.indmax = 0
-      self.indmin = 0
-
-      
       self.main_widget = QWidget()
-      self.createBaseLayout()
+      self.setBaseLayout()
       self.main_widget.setLayout(self.baseLayout)
       self.setCentralWidget(self.main_widget)
 
-#ax1.set_ylim(-2, 2)
-#ax1.set_title('Press left mouse button and drag '
-#              'to select a region in the top graph')
-
       self.show()
-# Set useblit=True on most backends for enhanced performance.
 
       
 
 
 #################################################################################
+
+
+#####################
+# Setters / Getters #
+#####################
+
+
+   def setFileName(self, name):
+      self.m_FileName = name
+
+
+   def setWindowFunctions(self, functions):
+      self.m_WindowFunctionList = functions
+
+
+   def setSpectrogramBands(self, bands):
+      self.m_SpectrogramBandsList = bands
+
+
+   def setOverlapPercentage(self, percentage):
+      self.m_OverlapPercentage = percentage
+
+   def setFileData(self, value):
+      self.m_FileData = value
+
+   def setTimeData(self, value):
+      self.m_TimeData = value
+
+   def setSpectrogramData(self, value):
+      self.m_SpectrogramData = value
+
+   def setFileFlag(self, value):
+      self.mb_FileOpened = value
+
+
+   def setMonoFlag(self, value):
+      self.mb_Mono = value
+
+
+   def setStereoFlag(self, value):
+      self.mb_Stereo = value
+
+   # After opening a new file
+   def setBaseLayout(self):
+      self.freq_resp_widget = PlotCanvas(self, width=12, height=1.5, dpi=101)
+      self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=101)
+      self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=101)
+
+      self.baseLayout = QGridLayout()
+      self.freqLayout = QVBoxLayout()
+      self.spectrogramLayout = QHBoxLayout()
+      self.spectralDistributionLayout = QHBoxLayout()
+
+      self.baseLayout.addLayout(self.freqLayout, 13, 0, 3, 9, Qt.AlignmentFlag.AlignBottom)
+      self.baseLayout.addLayout(self.spectrogramLayout, 0, 0, 13, 8, Qt.AlignmentFlag.AlignTop)
+      self.baseLayout.addLayout(self.spectralDistributionLayout, 0, 8, 13, 1, Qt.AlignmentFlag.AlignTop)
+
+      self.freqLayout.addWidget(self.freq_resp_widget)
+      self.spectrogramLayout.addWidget(self.spectrogram_widget)
+      self.spectralDistributionLayout.addWidget(self.spectral_distribution_widget)
+
+
+#
+# File edition and creation #
+#
+
+
+   def createNewFile(self):
+      self.checkIfFileIsSaved()
+
+      text, ok = QInputDialog.getText(self, 'Text Input Dialog', 'Enter your name:')
+		
+      if ok:
+         self.backend.create_file.emit(os.path.join(basedir, text))
+
+      self.backend.get_file_name.emit()
+      #self.freq_resp.clear()
+      #self.mono_spectrogram.clear()
+      #self.right_channel_spectrogram.clear()
+      #self.left_channel_spectrogram.clear()
+
+   def checkIfFileIsSaved(self):
+      print("Checking if the files have been saved after creation(graphs, recordings)")
+
+   def openFileFromDirectory(self):
+      # Checking if any wile was read before
+      if self.backend.getFileStatus():
+         self.clearPlotWidgets()
+
+      # Getting the filename from the dialog window
+      name=QFileDialog.getOpenFileName(self, 'Open file', '', '')
+
+      # Reading the file content
+      self.backend.openFile(filename=name[0])
+      
+      # Adding the spectrogram
+      self.spectrogram_widget.clearCanvas()
+      self.freq_resp_widget.clearCanvas()
+      self.addFrequencyResponse()
+      self.addSpectrogram()
+      self.spectrogram_widget.updateAxes()
+      self.freq_resp_widget.updateAxes()
+
+
+   def saveFileWithCurrentName(self):
+      name = QFileDialog.getSaveFileName(self, 'Save File')
+      print("Classic save functionality, overrides the file content, keeps the name")
+
+   def saveFileWithAnotherName(self):
+      print("Classic save functionality, overrides the file content, keeps the name")
+
 
 
    def overlapSlider(self, value):
@@ -414,28 +499,6 @@ class Window(QMainWindow):
          self.addSpectrogram()
          self.spectrogram_widget.updateAxes()
 
-   # After opening a new file
-   def createBaseLayout(self):
-      self.freq_resp_widget = PlotCanvas(self, width=12, height=1.5, dpi=101)
-      self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=101)
-      #self.spectrogram_widget.addTwoHorizontalPlots()
-      #self.freq_resp_widget.addSinglePlot()
-      self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=101)
-      #self.spectral_distribution_widget.addTwoVerticalPlots()
-
-      self.baseLayout = QGridLayout()
-      self.freqLayout = QVBoxLayout()
-      self.spectrogramLayout = QHBoxLayout()
-      self.spectralDistributionLayout = QHBoxLayout()
-
-      self.baseLayout.addLayout(self.freqLayout, 13, 0, 3, 9, Qt.AlignmentFlag.AlignBottom)
-      self.baseLayout.addLayout(self.spectrogramLayout, 0, 0, 13, 8, Qt.AlignmentFlag.AlignTop)
-      self.baseLayout.addLayout(self.spectralDistributionLayout, 0, 8, 13, 1, Qt.AlignmentFlag.AlignTop)
-
-      self.freqLayout.addWidget(self.freq_resp_widget)
-      self.spectrogramLayout.addWidget(self.spectrogram_widget)
-      self.spectralDistributionLayout.addWidget(self.spectral_distribution_widget)
-
    def clearPlotWidgets(self):
       self.freq_resp_widget.clearCanvas()
       self.spectrogram_widget.clearCanvas()
@@ -447,7 +510,7 @@ class Window(QMainWindow):
       # Adding a single plot
       self.freq_resp_widget.addSinglePlot()
 
-         # Adding the data
+      # Adding the data
       self.freq_resp_widget.m_Figure.tight_layout()
       self.freq_resp_widget.m_Plots.set_yticks([])
       #self.freq_resp_widget.m_Plots.set_xticks([])
@@ -500,7 +563,7 @@ class Window(QMainWindow):
 
       ##region_x = self.x[indmin:indmax]
       ##region_y = self.y[indmin:indmax]
-      self.backend.setFileSegment(int(indmin), int(indmax))
+      self.backend.setFileSegment([int(indmin), int(indmax)])
 
       print(indmax)
 
@@ -512,42 +575,6 @@ class Window(QMainWindow):
    # File methods #
    ################
 
-   def createNewFile(self):
-      self.checkIfFileIsSaved()
-      #self.freq_resp.clear()
-      #self.mono_spectrogram.clear()
-      #self.right_channel_spectrogram.clear()
-      #self.left_channel_spectrogram.clear()
-
-   def checkIfFileIsSaved(self):
-      print("Checking if the files have been saved after creation(graphs, recordings)")
-
-   def openFileFromDirectory(self):
-      # Checking if any wile was read before
-      if self.backend.getFileStatus():
-         self.clearPlotWidgets()
-
-      # Getting the filename from the dialog window
-      name=QFileDialog.getOpenFileName(self, 'Open file', '', '')
-
-      # Reading the file content
-      self.backend.openFile(filename=name[0])
-      
-      # Adding the spectrogram
-      self.spectrogram_widget.clearCanvas()
-      self.freq_resp_widget.clearCanvas()
-      self.addFrequencyResponse()
-      self.addSpectrogram()
-      self.spectrogram_widget.updateAxes()
-      self.freq_resp_widget.updateAxes()
-
-
-   def saveFileWithCurrentName(self):
-      print("Classic save functionality, overrides the file content, keeps the name")
-
-   def saveFileWithAnotherName(self):
-      print("Classic save functionality, overrides the file content, keeps the name")
-
    def exportPlots(self):
       #name = QFileDialog.getSaveFileName(self, 'Save File')
       #self.sc.fig.savefig(str(name[0]))
@@ -555,44 +582,6 @@ class Window(QMainWindow):
       self.freq_resp_widget.m_Figure.savefig("ajla")
       self.spectrogram_widget.m_Figure.savefig("bajla")
       self.spectral_distribution_widget.savefig("morela")
-
-   def saveFileWithSelectedTimestamp(self):
-      print("Saves the selected timestamp")
-   
-   def saveAudioChannelsSeparately(self):
-      print("Saves audio channels into separate files")
-
-   ###################
-   # Editing methods #
-   ###################
-
-   def selectTimestamp(self):
-      print("Allows selecting of the timestamp")
-
-   def selectWholeFile(self):
-      print("Selects whole file")
-
-   ################
-   # View methods #
-   ################
-
-   def showLeftChannelData(self):
-      print("Allows displaying of the left channel data")
-
-   def showRightChannelData(self):
-      print("Allows displaying of the right channel data")
-
-   def showBothChannelData(self):
-      print("Allows displaying both channels data")
-
-   def showFrequencyResponseGraph(self):
-      print("Displays on the screen the Freq Response graph")
-
-   def showSpectralPowerDistribution(self):
-      print("Displays the spectral power distribtuion")
-
-   def showSpectrogram(self):
-      print("Shows the spectrogram")
 
    ###################
    # Filters methods #
@@ -625,66 +614,9 @@ class Window(QMainWindow):
    # Recorder methods #
    ####################
 
-   def saveRecordedAudio(self):
-      print("")
-
    def startOrStopAudioRecording(self, s):
       print("Starts or pauses the recording, current checked value is = {a}".format(a=s))
 
-   #######################
-   # Spectrogram methods #
-   #######################
-
-   # 
-   def createSpectrogramGraph(self):
-      # If there are more than one channels in the file, i will create two spectrograms instead
-
-      self.backend.calculateSpectrogram()
-
-      if self.displayingMonoSpectrogram is True:
-         self.mono_spectrogram.axes.clearCanvas()
-         self.displayingMonoSpectrogram = False
-      elif self.displayingStereoSpectrogram is True:
-         self.left_channel_spectrogram.axes.clearCanvas()
-         self.right_channel_spectrogram.axes.clearCanvas()
-         self.displayingStereoSpectrogram = False
-         
-
-
-
-      if self.backend.monoChannelFile is True:
-         #self.mono_spectrogram.axes.specgram(self.backend.channel_1, Fs=self.backend.fs, )
-         self.mono_spectrogram.axes.pcolormesh(self.backend.segm, self.backend.freq, self.backend.sxx)
-         #self.mono_spectrogram.axes.set_xticklabels([])
-         #self.mono_spectrogram.axes.set_yticklabels([])
-         #self.mono_spectrogram.axes.set_xticks([])
-         #self.mono_spectrogram.axes.set_yticks([])
-         #self.mono_spectrogram.fig.tight_layout()
-         self.layout.addWidget(self.mono_spectrogram, 0, 0, 48, 32, Qt.AlignmentFlag.AlignTop)
-         self.displayingMonoSpectrogram = True
-         
-      if self.backend.stereoChannelFile is True:
-         self.left_channel_spectrogram.axes.specgram(self.backend.channel_1, Fs=self.backend.fs, )
-         self.left_channel_spectrogram.axes.set_xticklabels([])
-         self.left_channel_spectrogram.axes.set_yticklabels([])
-         self.left_channel_spectrogram.axes.set_xticks([])
-         self.left_channel_spectrogram.axes.set_yticks([])
-         self.left_channel_spectrogram.fig.tight_layout()
-         self.layout.addWidget(self.left_channel_spectrogram, 0, 0, 48, 16, Qt.AlignmentFlag.AlignTop)
-
-         self.right_channel_spectrogram.axes.specgram(self.backend.channel_2, Fs=self.backend.fs, )
-         self.right_channel_spectrogram.axes.set_xticklabels([])
-         self.right_channel_spectrogram.axes.set_yticklabels([])
-         self.right_channel_spectrogram.axes.set_xticks([])
-         self.right_channel_spectrogram.axes.set_yticks([])
-         self.right_channel_spectrogram.fig.tight_layout()
-         self.layout.addWidget(self.right_channel_spectrogram, 0, 16, 48, 16, Qt.AlignmentFlag.AlignTop)
-         self.displayingStereoSpectrogram = True
-
-
-   ## Window functions
-   def setRectangularWindowFunction(self):
-      print("Sets triangular window function")
 
    #######################################
    # Spectral Power Distribution methods #
@@ -704,7 +636,7 @@ class Window(QMainWindow):
    # GUI backend methods #
    #######################
    
-   def toolbarWindowSelector(self, ind):
+   def setWindowFunction(self, ind):
 
       # Passing in the index argument
       self.backend.setWindowFunction(index=ind)
@@ -713,7 +645,7 @@ class Window(QMainWindow):
       self.addSpectrogram()
       self.spectrogram_widget.updateAxes()
 
-   def toolbarSpectrogramRangeSelector(self, index):
+   def setSpectrogramBand(self, index):
 
       # Passing in the index argument
       self.backend.setSpectrogramBand(index)
