@@ -1,11 +1,22 @@
-# Here is the code responsible for displaying the
-# content that is mandatory for running the application
-# This is not a functional app, but only a graphical interface
-# that the app will be implemented with
+################################################################
+# Here is the code responsible for displaying the              #
+# content that is mandatory for running the application        #
+# This is not a functional app, but only a graphical interface #
+# that the app will be implemented with                        #
+################################################################
 
 
+#######################################
+# Using icons from https://icons8.com #
+#######################################
 
-# Modules imports
+
+###########
+# Imports #
+###########
+
+
+# Custom modules
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -20,7 +31,6 @@ from matplotlib.widgets import SpanSelector
 # System Imports
 import sys
 import os
-import numpy as np
 
 # Logic module import
 from ..logic.appLogic import appLogic as logic
@@ -164,10 +174,6 @@ class Window(QMainWindow):
 
       # File menu
       self.fileMenu = self.menu.addMenu("File")
-      # Edit menu
-      self.editMenu = self.menu.addMenu("Edit")
-      # View menu
-      self.viewMenu = self.menu.addMenu("View")
       # Tools menu
       self.toolsMenu = self.menu.addMenu("Tools")
       # Help menu
@@ -198,7 +204,7 @@ class Window(QMainWindow):
       save_file_as_action.triggered.connect(self.saveFileWithAnotherName)
 
       # Save selected timestamp
-      save_plot_action = QAction(QIcon(os.path.join(basedir, "icons/disk-rename.png")), "Export Plot", self)
+      save_plot_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-external-link-24.png")), "Export Plot", self)
       save_plot_action.setStatusTip("Saves the selected timestamp")
       save_plot_action.triggered.connect(self.exportPlots)
 
@@ -207,116 +213,44 @@ class Window(QMainWindow):
       save_separate_channels_action.setStatusTip("Saves the right and left channel in separate files")
       save_separate_channels_action.triggered.connect(self.saveAudioChannelsSeparately)
 
-      #########################
-      # Creating Edit Actions #
-      #########################
-
-      plot_action = QAction(QIcon(os.path.join(basedir, "icon/selection.png")), "Create Spectrogram", self)
-      plot_action.setStatusTip("Creates a spectrogram")
-      plot_action.triggered.connect(self.createSpectrogramGraph)
-
-      # Select Section
-      select_section_action = QAction(QIcon(os.path.join(basedir, "icons/selection.png")), "Select", self)
-      select_section_action.setStatusTip("Allows selection of timestamp of the file\nfor creating the graphs")
-      select_section_action.triggered.connect(self.selectTimestamp)
-
-      # Select Whole File
-      select_all_action = QAction(QIcon(os.path.join(basedir, "icons/selection-select.png")), "Select All", self)
-      select_all_action.setStatusTip("Allows selection of timestamp of the file\nfor creating the graphs")
-      select_all_action.triggered.connect(self.selectWholeFile)
-
-
-      #########################
-      # Creating View Actions #
-      #########################
-
-      # Gives the choice of currently displayed channels
-      show_left_channel_data_action = QAction("Left Channel", self)
-      show_left_channel_data_action.setCheckable(True)
-      show_left_channel_data_action.toggled.connect(self.showLeftChannelData)
-
-      show_right_channel_data_action = QAction("Right Channel", self)
-      show_right_channel_data_action.setCheckable(True)
-      show_right_channel_data_action.toggled.connect(self.showRightChannelData)
-
-      show_both_channels_data_action = QAction("All Channels", self)
-      show_both_channels_data_action.setCheckable(True)
-      show_both_channels_data_action.toggled.connect(self.showBothChannelData)
-
-      # Shows the frequency response graph on the screen
-      show_frequency_response_action = QAction("Frequency Response", self)
-      show_frequency_response_action.setCheckable(True)
-      show_frequency_response_action.toggled.connect(self.showFrequencyResponseGraph)
-
-      # Shows the spectral power distribution graph
-      show_spectral_power_distribution_action = QAction("Spectral Power Distribution", self)
-      show_spectral_power_distribution_action.setCheckable(True)
-      show_spectral_power_distribution_action.toggled.connect(self.showSpectralPowerDistribution)
-
-      # Shows the spectrogram
-      show_spectrogram_action = QAction("Spectrogram", self)
-      show_spectrogram_action.setCheckable(True)
-      show_spectrogram_action.toggled.connect(self.showSpectrogram)
-
       ##########################
       # Creating Tools Actions #
       ##########################
 
-      ## Filters
-
-      # default filter()
-      set_default_filter_action = QAction("(default)", self)
-      set_default_filter_action.setStatusTip("Default filter")
-      set_default_filter_action.triggered.connect(self.setDefaultFilter)
-
       ## Player
 
       # Plays the track
-      track_play_action = QAction(QIcon(os.path.join(basedir, "icons/control.png")), "Play", self)
+      track_play_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-play-24.png")), "Play", self)
       track_play_action.setStatusTip("Play the current audio track")
       track_play_action.triggered.connect(self.clearPlotWidgets)
 
       # Pauses the track
-      track_pause_action = QAction(QIcon(os.path.join(basedir, "icons/control-pause.png")), "Pause", self)
+      track_pause_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-pause-24.png")), "Pause", self)
       track_pause_action.setStatusTip("Stops the current audio track")
       track_pause_action.triggered.connect(self.updateFigure)
 
       # Stops the playback and resets to the start of the track
-      track_stop_action = QAction(QIcon(os.path.join(basedir, "icons/control-stop-square.png")), "Stop", self)
+      track_stop_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-stop-24.png")), "Stop", self)
       track_stop_action.setStatusTip("Stops and resets the playback")
       track_stop_action.triggered.connect(self.addFrequencyResponse)
 
       # Fast Forwards the track
-      track_fast_forward_action = QAction(QIcon(os.path.join(basedir, "icons/control-double.png")), "Fast Forward", self)
+      track_fast_forward_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-fast-forward-24.png")), "Fast Forward", self)
       track_fast_forward_action.setStatusTip("Fast forwards the track")
       track_fast_forward_action.triggered.connect(self.trackFastForward)
 
       # Rewind the track
-      track_rewind_action = QAction(QIcon(os.path.join(basedir, "icons/control-double-180.png")), "Rewind", self)
+      track_rewind_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-rewind-24.png")), "Rewind", self)
       track_rewind_action.setStatusTip("Rewinds the track")
       track_rewind_action.triggered.connect(self.trackRewind)
 
       ## Recorder
 
       # Start recording audio
-      recording_action = QAction(QIcon(os.path.join(basedir, "icons/control-pause-record.png")), "Start/Stop recording", self)
+      recording_action = QAction(QIcon(os.path.join(basedir, "icons/icons8-micro-24.png")), "Start/Stop recording", self)
       recording_action.setStatusTip("Starts the recording")
       recording_action.setCheckable(True)
       recording_action.triggered.connect(self.startOrStopAudioRecording)
-
-      ## Spectrogram
-
-      # Percentile coverage
-      percentile_coverage = QAction()
-
-      ## Window functions
-      rectangular_window_function_action = QAction("Rectangular", self)
-      rectangular_window_function_action.setStatusTip("Selects a rectangular window")
-      rectangular_window_function_action.triggered.connect(self.setRectangularWindowFunction)    
-
-      ## Spectral Power Distribution
-
-
 
       ##############################
       # Creating Help Actions #
@@ -340,42 +274,8 @@ class Window(QMainWindow):
       self.fileMenu.addAction(save_separate_channels_action)
 
       #######################################
-      # Connecting actions to the edit menu #
-      #######################################
-
-      self.editMenu.addAction(select_section_action)
-      self.editMenu.addSeparator()
-      self.editMenu.addAction(select_all_action)
-
-      #######################################
-      # Connecting actions to the view menu #
-      #######################################
-      
-      # Displayed channels submenu
-      displayed_channels_submenu = self.viewMenu.addMenu("Channels")
-      displayed_channels_submenu.addAction(show_left_channel_data_action)
-      displayed_channels_submenu.addAction(show_right_channel_data_action)
-      displayed_channels_submenu.addAction(show_both_channels_data_action)
-      self.viewMenu.addSeparator()
-      
-      # Display freq resp graph on the screen
-      self.viewMenu.addAction(show_frequency_response_action)
-      self.viewMenu.addSeparator()
-
-      # Display spectral power distribution graph on the screen
-      self.viewMenu.addAction(show_spectral_power_distribution_action)
-      self.viewMenu.addSeparator()
-
-      # Displays spectrogram graph on the screen
-      self.viewMenu.addAction(show_spectrogram_action)
-
-      #######################################
       # Connecting actions to the Tools menu #
       #######################################
-
-      # Filters submenu with added actions
-      filters_submenu = self.toolsMenu.addMenu("Filters")
-      filters_submenu.addAction(set_default_filter_action)
 
       # Player submenu with added actions
       player_submenu = self.toolsMenu.addMenu("Player")
@@ -397,7 +297,6 @@ class Window(QMainWindow):
       #############################################
 
       self.toolbar.addAction(save_plot_action)
-      self.toolbar.addAction(plot_action)
       self.toolbar.addSeparator()
       #self.toolbar.addAction(select_section_action)
       #self.toolbar.addAction(select_all_action)
@@ -517,12 +416,12 @@ class Window(QMainWindow):
 
    # After opening a new file
    def createBaseLayout(self):
-      self.freq_resp_widget = PlotCanvas(self, width=12, height=1, dpi=101)
+      self.freq_resp_widget = PlotCanvas(self, width=12, height=1.5, dpi=101)
       self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=101)
-      self.spectrogram_widget.addTwoHorizontalPlots()
-      self.freq_resp_widget.addSinglePlot()
+      #self.spectrogram_widget.addTwoHorizontalPlots()
+      #self.freq_resp_widget.addSinglePlot()
       self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=101)
-      self.spectral_distribution_widget.addTwoVerticalPlots()
+      #self.spectral_distribution_widget.addTwoVerticalPlots()
 
       self.baseLayout = QGridLayout()
       self.freqLayout = QVBoxLayout()
@@ -551,7 +450,7 @@ class Window(QMainWindow):
          # Adding the data
       self.freq_resp_widget.m_Figure.tight_layout()
       self.freq_resp_widget.m_Plots.set_yticks([])
-      self.freq_resp_widget.m_Plots.set_xticks([])
+      #self.freq_resp_widget.m_Plots.set_xticks([])
       self.freq_resp_widget.m_Plots.plot(self.backend.getFileTimeData(), self.backend.getFileData())
 
       self.span = SpanSelector(
@@ -560,6 +459,7 @@ class Window(QMainWindow):
          "horizontal",
          useblit=True,
          props=dict(alpha=0.5, facecolor="tab:blue"),
+         onmove_callback=self.onselect,
          interactive=True,
          drag_from_anywhere=True
       )
@@ -598,9 +498,11 @@ class Window(QMainWindow):
       indmin, indmax = self.backend.getFileTimeData().searchsorted((xmin, xmax))
       indmax = min(len(self.backend.getFileTimeData()) - 1, indmax)
 
-      #region_x = self.x[indmin:indmax]
-      #region_y = self.y[indmin:indmax]
+      ##region_x = self.x[indmin:indmax]
+      ##region_y = self.y[indmin:indmax]
       self.backend.setFileSegment(int(indmin), int(indmax))
+
+      print(indmax)
 
       self.spectrogram_widget.clearCanvas()
       self.addSpectrogram()
