@@ -8,8 +8,7 @@
 import sys
 
 # Local modules and packages
-from backend import *
-from ui import appWindow as gui
+from backend import appWindow as gui
 
 
 
