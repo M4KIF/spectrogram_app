@@ -16,12 +16,14 @@ from scipy import signal
 import numpy as np
 
 # Audio playback and recording
-from playsound import playsound
 import simpleaudio as sa
-import wave
+import sounddevice as sd
 
 # Threading support
 from PyQt5.QtCore import pyqtSignal, QObject, QMutex
+
+# For the sleep timer
+import time
 
 # Miscelanous
 import math
@@ -85,6 +87,9 @@ class appLogic(QObject):
    pause_audio = pyqtSignal()
    stop_audio = pyqtSignal()
    playback_status = pyqtSignal()
+   record_file = pyqtSignal()
+   recording_length_dialog = pyqtSignal()
+   recording_length = pyqtSignal(int)
 
    # 
    create_file = pyqtSignal(str)
@@ -135,11 +140,14 @@ class appLogic(QObject):
       self.create_file.connect(self.createFile)
       self.open_file.connect(self.openFile)
       self.save_file.connect(self.saveFile)
+      self.close_file.connect(self.closeFile)
 
       self.play_audio.connect(self.playAudio)
       self.pause_audio.connect(self.pauseAudio)
       self.stop_audio.connect(self.stopAudio)
       self.playback_status.connect(self.playbackStatus)
+      self.record_file.connect(self.recordFile)
+      self.recording_length.connect(self.setRecordingLength)
 
       self.prepare_freq_response_data.connect(self.calculateFrequencyResponse)
       self.prepare_spectrogram_data.connect(self.calculateSpectrogram)
@@ -160,7 +168,10 @@ class appLogic(QObject):
 
 
       # Used only for audio playback
-      self.m_PlaybackFile = None
+      self.m_NewFile = None
+
+      # Created file recording length
+      self.m_RecordingLength = int
 
       # Passed filename
       self.m_FileName = None
@@ -266,6 +277,7 @@ class appLogic(QObject):
 
       # State of the file flags
       self.mb_FileOpened = False
+      self.mb_FileCreated = False
       self.mb_SegmentSelected = False
       self.mb_FileSaved = False
 
@@ -291,6 +303,12 @@ class appLogic(QObject):
 
    def setFileName(self, filename=str):
       self.m_FileName = filename
+
+
+   def setRecordingLength(self, lenght=int):
+      self.mutex.lock()
+      self.m_RecordingLength = lenght
+      self.mutex.unlock()
 
 
    # Changes the currently set window function
@@ -566,6 +584,9 @@ class appLogic(QObject):
       # Setting the filename
       self.m_FileName = name
 
+      # Activating the flag
+      self.mb_FileCreated = True
+
 
    # Opens and reads the file
    def openFile(self, filename=None):
@@ -592,7 +613,7 @@ class appLogic(QObject):
          self.mutex.lock()
 
          # Getting the length of the file
-         self.m_FileSampleCount = self.m_Data.shape[0] / self.m_SamplingFrequency
+         self.m_FileSampleCount = len(self.m_Data)
 
          # Setting the default file segment
          self.setDefaultFileSegment()
@@ -666,6 +687,7 @@ class appLogic(QObject):
       self.mb_SpectrogramBandSelected = False
       self.mb_WindowFunctionSelected = False
       self.mb_OverlapSelected = False
+      self.mb_FileCreated = False
       self.mutex.unlock()
 
 
@@ -685,6 +707,78 @@ class appLogic(QObject):
 
    def playbackStatus(self):
       self.send_playback_status.emit(self.m_PlayObject.is_playing())
+
+
+   def recordFile(self):
+      sd.default.samplerate = 44100
+      sd.default.channels = 2
+      self.m_SamplingFrequency = 44100
+
+      self.mb_StereoChannelsHandled = True
+      self.mb_MonoChannelHandled = False
+
+      if self.mb_FileCreated:
+         self.recording_length_dialog.emit()
+      
+      self.m_Data = sd.rec(int(self.m_RecordingLength * 44100))
+
+      while sd.wait():
+
+         # Waiting for a while
+         time.sleep(3)
+
+         print('asdsd')
+
+         # Emitting the signal to update the frequency response graph
+         self.calculateFrequencyResponse()
+
+      self.mb_FileCreated = True
+      
+      self.mutex.lock()
+
+      # Getting the length of the file
+      self.m_FileSampleCount = len(self.m_Data)
+
+      # Setting the default file segment
+      self.setDefaultFileSegment()
+
+      # Checking if the number of dimmensions of the array corresponds to stereo or mono audio data
+      if np.ndim(self.m_Data) > 1:
+         # Setting flags accordingly
+         self.mb_StereoChannelsHandled  = True
+         self.mb_MonoChannelHandled = False
+
+         # Dividing the data into channels
+         self.m_Channel_1_Data = self.m_Data[:,0]
+         self.m_Channel_2_Data = self.m_Data[:,1]
+      else:
+         #Setting flags accordingly
+         self.mb_MonoChannelHandled = True
+         self.mb_StereoChannelsHandled  = False
+
+         # Division of the data not needed
+         self.m_Channel_1_Data = self.m_Data
+
+      self.m_TimeSegments = np.linspace(0, len(self.m_Channel_1_Data)/self.m_SamplingFrequency, num=len(self.m_Channel_1_Data))
+
+      self.mutex.unlock()
+
+      # Activating the flag that informs about the opened file
+      self.mb_FileOpened = True
+
+      ###########################
+      # Calling setup functions #
+      ###########################
+
+      self.setSpectrogramBand()
+      self.setWindowFunction()
+      self.setDefaulWindowOverlapPercentage()
+
+      #####################################
+      # Calling the calculating functions #
+      #####################################
+
+      self.calculateSpectrogramParameters()
 
 
    # Calculates the window length 
@@ -783,63 +877,3 @@ class appLogic(QObject):
 
 
 ####################################################################################
-
-
-   # Opening an audio file with the given name
-
-   def editRnge(self, start=None, end=None):
-      if end != 0:
-         self.m_FirstSelectedSample = start
-         self.m_LastSelectedSample = end
-      else:
-         self.m_FirstSelectedSample = 0
-         self.m_LastSelectedSample = self.m_FileSampleCount
-
-
-   # The default window overlap is set to 10%
-   def setOvelap(self, value=10):
-      # If the value is in fact a percentile value
-      if value > 0 and value <= 100:
-         # Calculates the overlap with a safety rounding to prevent the overlap from reaching 0
-         self.m_WindowOverlap = int(math.ceil(self.m_WindowLength * value / 100))
-
-      else:
-         # If it isn't setting to default 10%
-         self.m_WindowOverlap = int(math.ceil(self.m_WindowLength/10))
-
-      print(self.m_WindowOverlap)
-
-
-   def calculateWidowLengths(self):
-      # Calculating the narrowband window length > 2 * n-samples/sampling frequency
-      self.m_NarrowWindow = int(0.035 * self.m_SamplingFrequency)
-      # Calculating the wideband window length < n-samples/sampling frequency
-      self.m_WideWindow = int(0.004 * self.m_SamplingFrequency)
-
-   def chooseRnge(self, index=0):
-      # Selecting the right window
-      if index == 0:
-         # Calculating the narrowband window length > 2 * n-samples/sampling frequency
-         self.m_WindowLength = self.m_NarrowWindow 
-      elif index == 1:
-         # Calculating the wideband window length < n-samples/sampling frequency
-         self.m_WindowLength = self.m_WideWindow
-
-
-   def calculateSpectogram(self, min_index=None, max_index=None):
-
-      print(f"Here comes the error {self.m_WindowLength}, and narr {self.m_NarrowWindow} or wide {self.m_WideWindow}")
-      print(f"{self.m_LastSelectedSample-self.m_FirstSelectedSample}")
-      if self.m_WindowLength == self.m_WindowOverlap:
-         self.m_WindowLength+=1
-
-      if self.mono:
-         self.m_Freq_1, self.m_Time_1, self.m_Spectrogram_1 = signal.spectrogram(self.channel_1[self.m_FirstSelectedSample:self.m_LastSelectedSample], self.m_SamplingFrequency, window=signal.get_window(self.m_CurrentWindowFunction, self.m_WindowLength), nperseg=self.m_WindowLength, noverlap=self.m_WindowOverlap)
-         self.m_Spectrogram_1 = np.log(self.m_Spectrogram_1)
-      elif self.mb_StereoChannelsHandled :
-         self.m_Freq_1, self.m_Time_1, self.m_Spectrogram_1 = signal.spectrogram(self.channel_1[self.m_FirstSelectedSample:self.m_LastSelectedSample], self.m_SamplingFrequency, window=signal.get_window(self.m_CurrentWindowFunction, self.m_WindowLength), nperseg=self.m_WindowLength, noverlap=self.m_WindowOverlap)
-         self.m_Freq_2, self.m_Time_2, self.m_Spectrogram_2 = signal.spectrogram(self.channel_2[self.m_FirstSelectedSample:self.m_LastSelectedSample], self.m_SamplingFrequency, window=signal.get_window(self.m_CurrentWindowFunction, self.m_WindowLength), nperseg=self.m_WindowLength, noverlap=self.m_WindowOverlap)
-         self.m_Spectrogram_1 = np.log(self.m_Spectrogram_1)
-         self.m_Spectrogram_2 = np.log(self.m_Spectrogram_2)
-      
-

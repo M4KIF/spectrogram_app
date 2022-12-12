@@ -1,0 +1,67 @@
+   set_filename = pyqtSignal(str)
+   set_window_function = pyqtSignal(int)
+   set_spectrogram_band = pyqtSignal(int)
+   set_file_segment = pyqtSignal(list)
+   set_window_overlap_percentage = pyqtSignal(int)
+
+   # Those are signals to be emitted from the main section. Here they will be captured
+   get_window_function_list = pyqtSignal()
+   get_spectrogram_bands_list = pyqtSignal()
+   get_window_function = pyqtSignal()
+   get_spectrogram_band = pyqtSignal()
+   get_file_segment = pyqtSignal()
+   get_overlap_percentage = pyqtSignal()
+   get_file_data = pyqtSignal()
+   get_time_data = pyqtSignal()
+   get_channel_data = pyqtSignal()
+   get_file_status = pyqtSignal()
+   get_mono_status = pyqtSignal()
+   get_stereo_status = pyqtSignal()
+
+   send_window_function_list = pyqtSignal(list)
+   send_spectrogram_bands_list = pyqtSignal(list)
+   send_window_function = pyqtSignal(str)
+   send_spectrogram_band = pyqtSignal(str)
+   send_file_segment = pyqtSignal(list)
+   send_overlap_percentage = pyqtSignal(int)
+   send_file_data = pyqtSignal(np.ndarray)
+   send_time_data = pyqtSignal(np.ndarray)
+   send_channel_data = pyqtSignal(list)
+   send_file_status = pyqtSignal(bool)
+   send_mono_status = pyqtSignal(bool)
+   send_stereo_status = pyqtSignal(bool)
+
+   play_audio = pyqtSignal()
+   pause_audio = pyqtSignal()
+   stop_audio = pyqtSignal()
+   playback_status = pyqtSignal()
+
+   # 
+   create_file = pyqtSignal()
+   open_file = pyqtSignal(str)
+   save_file = pyqtSignal()
+   
+   def setWindowFunctions(self, functions):
+      self.m_WindowFunctionList = functions
+
+
+   def setSpectrogramBands(self, bands):
+      self.m_SpectrogramBandsList = bands
+
+
+   def setOverlapPercentage(self, percentage):
+      self.m_OverlapPercentage = percentage
+
+
+   def setFileBool(self, value):
+      self.mb_FileOpened = value
+
+
+   def setMonoBool(self, value):
+      self.mb_Mono = value
+
+
+   def setStereoBool(self, value):
+      self.mb_Stereo = value
+      
+      

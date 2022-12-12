@@ -158,48 +158,53 @@ class Window(QMainWindow):
 
 
       self.m_FileName = str()
+      self.m_SamplingRate = None
       self.m_WindowFunctionList = []
       self.m_SpectrogramBandsList = []
       self.m_OverlapPercentage = None
 
-      #self.m_FileData = None
-      #self.m_TimeData = None
-      #self.m_SpectrogramData = [[], []]
+      # About the audio data matrix
+      self.m_LowerIndex = None
+      self.m_HigherIndex = None
 
+      # Some boolean flags
       self.mb_FileOpened = False
       self.mb_FileSaved = False
       self.mb_Mono = False
       self.mb_Stereo = False
 
 
-      #
+      ############################
       # Backend mt functionality #
-      #
+      ############################
 
 
       # Defining the backend object
       self.backend = logic()
 
+      # Moving this object to another thread
       self.backend.moveToThread(self.m_BackendThread)
 
-      # Connecting the signals
-
+      # Setter signals
       self.backend.send_file_name.connect(self.setFileName)
       self.backend.send_window_function_list.connect(self.setWindowFunctionsList)
       self.backend.send_spectrogram_bands_list.connect(self.setSpectrogramBandsList)
       self.backend.send_overlap_percentage.connect(self.setOverlapPercentage)
       self.backend.send_file_status.connect(self.setFileFlag)
+      self.backend.send_file_segment.connect(self.setFileSegment)
       self.backend.send_file_saved_status.connect(self.setFileSavedFlag)
       self.backend.send_mono_status.connect(self.setMonoFlag)
       self.backend.send_stereo_status.connect(self.setStereoFlag)
       self.backend.send_file_data.connect(self.setFileData)
       self.backend.send_time_data.connect(self.setTimeData)
       self.backend.send_channel_data.connect(self.setSpectrogramData)
+      self.backend.recording_length_dialog.connect(self.setRecordingLength)
 
+      # Main plot updating signals
       self.backend.send_freq_response_data.connect(self.updateFrequencyResponse)
       self.backend.send_spectrogram_data.connect(self.updateSpectrogram)
 
-      # Getting the data
+      # Getting needed data to start the application
       self.backend.get_window_function_list.emit()
       self.backend.get_spectrogram_bands_list.emit()
 
@@ -338,12 +343,6 @@ class Window(QMainWindow):
       recorder_submenu = self.toolsMenu.addMenu("Recorder")
       recorder_submenu.addAction(recording_action)
 
-      # Spectrogram submenu with added actions
-      spectrogram_submenu = self.toolsMenu.addMenu("Spectrogram")
-
-      # Spectral Power Distribution submenu with added actions
-      spectral_power_distribution_submenu = self.toolsMenu.addMenu("Spectral Power Distribution")
-
       #############################################
       # Connecting created actions to the toolbar #
       #############################################
@@ -404,6 +403,8 @@ class Window(QMainWindow):
 
       super(Window, self).closeEvent(event)
 
+      self.backend.close_file.emit()
+
       self.m_BackendThread.quit()
 
 
@@ -420,6 +421,14 @@ class Window(QMainWindow):
       self.m_FileName = name
 
 
+   def setRecordingLength(self):
+      # Getting the nrecording length
+      number, ok = QInputDialog.getInt(self, 'Set recording length', 'Time in seconds:')
+		
+      if ok:
+         self.backend.recording_length.emit(number)
+
+
    def setWindowFunctionsList(self, functions):
       self.m_WindowFunctionList = functions
 
@@ -431,17 +440,27 @@ class Window(QMainWindow):
    def setOverlapPercentage(self, percentage):
       self.m_OverlapPercentage = percentage
 
+
    def setFileData(self, value):
       self.m_FileData = value
+
 
    def setTimeData(self, value):
       self.m_TimeData = value
 
+
    def setSpectrogramData(self, value):
       self.m_SpectrogramData = value
 
+
    def setFileFlag(self, value):
       self.mb_FileOpened = value
+
+
+   def setFileSegment(self, value):
+      self.m_LowerIndex = value[0]
+      self.m_HigherIndex = value[1]
+
 
    def setFileSavedFlag(self, value):
       self.mb_FileSaved = value
@@ -454,8 +473,10 @@ class Window(QMainWindow):
    def setStereoFlag(self, value):
       self.mb_Stereo = value
 
+
    # After opening a new file
    def setBaseLayout(self):
+
       self.freq_resp_widget = PlotCanvas(self, width=12, height=1.5, dpi=101)
       self.spectrogram_widget = PlotCanvas(self, width=11, height=6, dpi=101)
       self.spectral_distribution_widget = PlotCanvas(self, width=1, height=5, dpi=101)
@@ -473,9 +494,6 @@ class Window(QMainWindow):
       self.spectrogramLayout.addWidget(self.spectrogram_widget)
       self.spectralDistributionLayout.addWidget(self.spectral_distribution_widget)
 
-      self.addFrequencyResponse()
-      self.addSpectrogram()
-
 
 #
 # File edition and creation #
@@ -487,6 +505,13 @@ class Window(QMainWindow):
       # Updating the file flags
       self.backend.get_file_saved_status.emit()
       self.backend.get_file_status.emit()
+
+      # Adding the spectrogram
+      self.spectrogram_widget.clearCanvas()
+      self.freq_resp_widget.clearCanvas()
+
+      self.addFrequencyResponse()
+      self.addSpectrogram()
 
       # Checking if anything open is saved
       if not self.mb_FileSaved and self.mb_FileOpened:
@@ -532,18 +557,23 @@ class Window(QMainWindow):
       # Getting the filename from the dialog window
       name = QFileDialog.getOpenFileName(self, 'Open file', '', '')
 
-      # Reading the file content
-      self.backend.open_file.emit(name[0])
+      if not name[0] == '':
+
+         # Reading the file content
+         self.backend.open_file.emit(name[0])
       
-      # Adding the spectrogram
-      self.spectrogram_widget.clearCanvas()
-      self.freq_resp_widget.clearCanvas()
+         # Adding the spectrogram
+         self.spectrogram_widget.clearCanvas()
+         self.freq_resp_widget.clearCanvas()
 
-      self.addFrequencyResponse()
-      self.addSpectrogram()
+         self.addFrequencyResponse()
+         self.addSpectrogram()
 
-      self.backend.prepare_freq_response_data.emit()
-      self.backend.prepare_spectrogram_data.emit()
+         self.backend.get_file_saved_status.emit()
+         self.backend.get_file_status.emit()
+
+         self.backend.prepare_freq_response_data.emit()
+         self.backend.prepare_spectrogram_data.emit()
 
 
    def saveFileWithCurrentName(self):
@@ -610,30 +640,31 @@ class Window(QMainWindow):
 
    def updateFrequencyResponse(self, value):
 
-      # Clearing the axes values
-      self.freq_resp_widget.clearAxes()
-      self.freq_resp_widget.m_Plots.set_yticks([])
-      self.freq_resp_widget.m_Figure.tight_layout()
+      if self.mb_FileOpened:
+         # Clearing the axes values
+         self.freq_resp_widget.clearAxes()
+         self.freq_resp_widget.m_Plots.set_yticks([])
+         self.freq_resp_widget.m_Figure.tight_layout()
 
-      if self.backend.mutex.tryLock():
-         self.m_FileData = copy(value[0])
-         self.m_TimeData = copy(value[1])
-         self.backend.mutex.unlock()
+         if self.backend.mutex.tryLock():
+            self.m_FileData = copy(value[0])
+            self.m_TimeData = copy(value[1])
+            self.backend.mutex.unlock()
 
-      self.span = SpanSelector(
-         self.freq_resp_widget.m_Plots,
-         self.onselect,
-         "horizontal",
-         useblit=True,
-         props=dict(alpha=0.5, facecolor="tab:blue"),
-         onmove_callback=self.onselect,
-         interactive=True,
-         drag_from_anywhere=True
-      )
+         self.span = SpanSelector(
+            self.freq_resp_widget.m_Plots,
+            self.onselect,
+            "horizontal",
+            useblit=True,
+            props=dict(alpha=0.5, facecolor="tab:blue"),
+            onmove_callback=self.onselect,
+            interactive=True,
+            drag_from_anywhere=True
+         )
 
-      self.freq_resp_widget.m_Plots.plot(self.m_TimeData, self.m_FileData)
+         self.freq_resp_widget.m_Plots.plot(self.m_TimeData, self.m_FileData)
 
-      self.freq_resp_widget.updateAxes()
+         self.freq_resp_widget.updateAxes()
 
 
    def updateSpectralDistribution(self):
@@ -712,7 +743,7 @@ class Window(QMainWindow):
    ####################
 
    def startOrStopAudioRecording(self, s):
-      print("Starts or pauses the recording, current checked value is = {a}".format(a=s))
+      self.backend.record_file.emit()
 
 
    #######################################
